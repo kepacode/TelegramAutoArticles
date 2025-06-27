@@ -5,31 +5,10 @@ import feedparser
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from transformers import pipeline
 import wikipediaapi
+from get_rss import get_rss_trends
 
 # Инициализация локальной модели для генерации текста
 summarizer = pipeline("summarization", model="Falconsai/text_summarization")  # Бесплатная модель
-
-def get_rss_trends():
-    """Получение трендов из RSS-лент мировых новостей"""
-    try:
-        # Список открытых RSS-лент
-        sources = [
-            "https://news.google.com/rss?hl=ru",
-            "https://www.bbc.co.uk/news/world/rss.xml",
-            "https://www.reuters.com/sitemap.xml"
-        ]
-        
-        trends = []
-        for source in sources:
-            feed = feedparser.parse(source)
-            for entry in feed.entries[:5]:  # Берем первые 5 статей
-                title = entry.title.lower()
-                if any(word in title for word in ["важно", "новое", "обновление"]):
-                    trends.append(title.split()[0])  # Берем ключевое слово
-        return list(set(trends))  # Удаляем дубликаты
-    except Exception as e:
-        print(f"Ошибка RSS: {e}")
-        return ["технологии", "здоровье", "экономика"]
 
 def generate_free_article(topic):
     """Генерация статьи через суммаризацию Википедии + шаблон"""
@@ -67,20 +46,19 @@ def start(update, context):
     )
 
 def generate(update, context):
-    # Получаем тренды из RSS
-    topics = get_rss_trends()
+    # Используем вашу функцию из модуля
+    topics = get_rss_trends()  # ← Здесь вызов из вашего модуля
     selected_topic = random.choice(topics)
     
     update.message.reply_text(f"Генерирую статью по теме: {selected_topic}...")
     article = generate_free_article(selected_topic)
     
-    # Разбиваем на части (Telegram лимит - 4096 символов)
     for i in range(0, len(article), 4000):
         update.message.reply_text(article[i:i+4000])
-        time.sleep(1)  # Задержка между частями
+        time.sleep(1)
 
 def main():
-    updater = Updater(os.getenv("TELEGRAM_TOKEN"), use_context=True)
+    updater = Updater(os.getenv("YOUR_BOT_TOKEN"), use_context=True)
     dp = updater.dispatcher
     
     dp.add_handler(CommandHandler("start", start))
